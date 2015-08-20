@@ -1,0 +1,8 @@
+{
+	"name": "linear",
+	"description": "A tiny linear-algebra library.",
+	"copyright": "Copyright (c) 2015",
+	"license": "Unlicense",
+	"authors": ["Ryuichi OHORI"],
+	"dependencies": {}
+}
