@@ -9,6 +9,34 @@ enum rowMajor = RowMajor.yes, columnMajor = RowMajor.no;
 */
 struct Matrix(T, RowMajor rowMajor=rowMajor)
 {
+	/// Initialize Matrix with given payload.
+	this (T[][] payload)
+	{
+		this.payload = payload;
+	}
+	/// Zero-clearer.
+	static if (T.init != 0)
+	this ()
+	{
+		foreach (row; payload)
+			row[] = 0;
+	}
+	/// Initialize zero Matrix with specified rows and columns;
+	static if (rowMajor)
+	this (size_t rows, size_t columns)
+	{
+		payload = new T[][](rows, columns);
+		static if (T.init != 0)
+			this ();
+	}
+	else
+	this (size_t rows, size_t columns)
+	{
+		payload = new T[][](columns, rows);
+		static if (T.init != 0)
+			this ();
+	}
+	/// Addition and subtraction.
 	auto opOpAssign(string op)(typeof (this) rhs)
 		if (op == "+" || op == "-")
 	{
@@ -16,6 +44,7 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 	mixin ("payload[i][] "~op~"= major[];");
 		return this;
 	}
+	/// ditto
 	auto opBinary(string op)(typeof (this) rhs)
 		if (op == "+" || op == "-")
 	{
@@ -24,6 +53,27 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 			payload ~= major.dup;
 mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 	}
+	/// Scaler multiplication.
+	auto opOpAssign(string op)(T rhs)
+		if (op == "*" || op == "/")
+	{
+		foreach (major; payload)
+	mixin ("major[] "~op~"= rhs;");
+		return this;
+	}
+	/// ditto
+	auto opBinary(string op)(T rhs)
+		if (op == "*" || op == "/")
+	{
+		return copy.opOpAssign!op(rhs);
+	}
+	/// ditto
+	auto opBinaryRight(string op)(T lhs)
+		if (op == "*")
+	{
+		return opBinary!op(lhs);
+	}
+	/// Multiplication with vector.
 	auto opBinaryRight(string op)(RowVector!T lhs)
 		if (op == "*" && !rowMajor)
 	{
@@ -32,6 +82,7 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 			ret.payload ~= lhs * column;
 		return ret;
 	}
+	/// ditto
 	auto opBinaryRight(string op)(RowVector!T lhs)
 		if (op == "*" && rowMajor)
 	{
@@ -42,6 +93,7 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 			ret.payload[] += lhs.payload[i] * row[];
 		return ret;
 	}
+	/// ditto
 	auto opBinary(string op)(ColumnVector!T rhs)
 		if (op == "*" && rowMajor)
 	{
@@ -50,6 +102,7 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 			ret.payload ~= row * rhs;
 		return ret;
 	}
+	/// ditto
 	auto opBinary(string op)(ColumnVector!T rhs)
 		if (op == "*" && !rowMajor)
 	{
@@ -60,6 +113,7 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 			ret.payload[] += column[] * rhs.payload[i];
 		return ret;
 	}
+	/// Matrix multiplication.
 	auto opBinary(string op)(typeof (this) rhs)
 		if (op == "*" && rowMajor)
 	{
@@ -68,6 +122,7 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 			ret.payload ~= (RowVector!T(row) * rhs).payload;
 		return ret;
 	}
+	/// ditto
 	auto opBinary(string op)(typeof (this) rhs)
 		if (op == "*" && !rowMajor)
 	{
@@ -76,8 +131,93 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 			ret.payload ~= (this * ColumnVector!T(column)).payload;
 		return ret;
 	}
-private:
+	/// Get a row/column.
+	static if (rowMajor)
+	auto row(size_t index)
+	{
+		return payload[index].row;
+	}
+	else
+	auto column(size_t index)
+	{
+		return payload[index].column;
+	}
+	/// Iterate over rows/columns.
+	static if (rowMajor)
+	auto byRow()
+	{
+		struct R
+		{
+			T[][] payload;
+			auto front()
+			{
+				return payload.front.row;
+			}
+			void popFront()
+			{
+				payload.popFront;
+			}
+			auto empty()
+			{
+				return payload.empty;
+			}
+		}
+		return R(payload);
+	}
+	else
+	auto byColumn()
+	{
+		struct R
+		{
+			T[][] payload;
+			auto front()
+			{
+				return payload.front.column;
+			}
+			void popFront()
+			{
+				payload.popFront;
+			}
+			auto empty()
+			{
+				return payload.empty;
+			}
+		}
+		return R(payload);
+	}
+	/// Get a row/column.
+	static if (rowMajor)
+	auto getColumn(size_t index)
+	{
+		T[] ret;
+		foreach (row; payload)
+			ret ~= row[index];
+		return ret.column;
+	}
+	else
+	auto getRow(size_t index)
+	{
+		T[] ret;
+		foreach (column; payload)
+			ret ~= column[index];
+		return ret.row;
+	}
+	/// deep copy.
+	auto copy()
+	{
+		T[][] ret;
+		foreach (major; payload)
+			ret ~= major.dup;
+		return typeof (this)(ret);
+	}
+	/// For element-wise special operation.
+	auto _rawPayload()
+	{
+		return payload;
+	}
+package:
 	T[][] payload;
+private:
 	size_t majorLength()
 	{
 		return payload.length;
@@ -88,6 +228,7 @@ private:
 	}
 }
 
+/// Construct matrix from payload.
 auto matrix(RowMajor rowMajor=rowMajor, T)(T[][] payload)
 {
 	return Matrix!(T, rowMajor)(payload);
@@ -144,7 +285,39 @@ unittest
 	assert ((a * b).payload == [[21, 34, 47], [27, 44, 61], [33, 54, 75]]);
 }
 
-/* Diagonal matrix type.
+/// transpose a payload for matrix.
+T[][] transpose(T)(T[][] payload)
+{
+	if (payload.empty || payload.front.empty)
+		return [];
+	auto ret = new T[][](payload[0].length, payload.length);
+	foreach (i, major; payload)
+		foreach (j, elem; major)
+			ret[j][i] = elem;
+	return ret;
+}
+
+unittest
+{
+	auto a = Matrix!(int, rowMajor)(3, 5);
+	auto b = Matrix!(int, columnMajor)(5, 3);
+	assert (a.payload == b.payload);
+	a._rawPayload[0][1] = 1;
+	b._rawPayload[0][1] = 1;
+	assert (a.payload[0][1] == 1);
+	assert (b.payload[0][1] == 1);
+	a = a * 3;
+	b = 3 * b;
+	assert (a.payload == b.payload);
+	assert (a.row(2).payload == b.column(2).payload);
+	assert (!a.byRow.empty);
+	assert (!b.byColumn.empty);
+	foreach (p; a.byRow.zip(b.byColumn))
+		assert (p[0].payload == p[1].payload);
+	assert (a.getColumn(4).payload == b.getRow(4).payload);
+}
+
+/** Diagonal matrix type.
 
 Scaler multiplication for rows or columns should be translated to the product with Diagonal.
 */
@@ -161,6 +334,34 @@ struct Diagonal(T)
 	{
 		mixin ("payload[] "~op~"= rhs.payload[];");
 		return this;
+	}
+
+	/// scaler multiplication.
+	auto opOpAssign(string op)(T rhs)
+		if (op == "*" || op == "/")
+	{
+		mixin ("payload[] "~op~"= rhs;");
+		return this;
+	}
+	/// ditto
+	auto opBinary(string op)(T rhs)
+		if (op == "*" || op == "/")
+	{
+		return copy.opOpAssign!op(rhs);
+	}
+	/// ditto
+	auto opBinaryRight(string op)(T lhs)
+		if (op == "*")
+	{
+		return opBinary!op(lhs);
+	}
+	/// ditto
+	auto opBinaryRight(string op)(T lhs)
+		if (op == "/")
+	{
+		auto payload = this.payload.dup;
+		payload[] = lhs / payload[];
+		return typeof (this)(payload);
 	}
 
 	/// multiplication with vector.
@@ -220,10 +421,12 @@ package:
 	}
 }
 
+/// ditto
 auto diagonal(T)(T[] payload)
 {
 	return Diagonal!T(payload);
 }
+/// ditto
 auto diagonal(V)(V vector)
 	if (is (V : RowVector!T, T) ||
 		is (V : ColumnVector!T, T))
@@ -267,6 +470,17 @@ unittest
 	auto t = [[0, 1, 2], [3, 4, 5]].matrix!columnMajor;
 	assert ((b * t).payload == [[0, 3, 8], [6, 12, 20]]);
 	assert ((t * c).payload == [[0, 2, 4], [9, 12, 15]]);
+}
+
+unittest
+{
+	auto a = [2, 4, 6, 8].diagonal;
+	a = a / 2;
+	assert (a.payload == [1, 2, 3, 4]);
+	a = 12 / a;
+	assert (a.payload == [12, 6, 4, 3]);
+	a = 5 * a;
+	assert (a.payload == [60, 30, 20, 15]);
 }
 
 unittest

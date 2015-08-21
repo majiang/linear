@@ -1,6 +1,7 @@
 module linear.vector;
 import linear;
 
+/// Row vector.
 struct RowVector(T)
 {
 	/// Componentwise product.
@@ -64,17 +65,31 @@ struct RowVector(T)
 	{
 		return this.payload.product(rhs);
 	}
-package:
-	T[] payload;
+	/// Length.
+	auto length()
+	{
+		return payload.length;
+	}
+	/// For special element-wise operation.
+	auto opIndex()
+	{
+		return payload[];
+	}
+	/// Copy.
 	auto copy()
 	{
 		return typeof (this)(payload.dup);
 	}
+package:
+	T[] payload;
 }
+/// ditto
 auto row(T)(T[] payload)
 {
 	return RowVector!T(payload);
 }
+
+/// Column vector.
 struct ColumnVector(T)
 {
 	/// Componentwise product.
@@ -131,18 +146,47 @@ struct ColumnVector(T)
 	{
 		return lhs.product(this.payload);
 	}
-package:
-	T[] payload;
+	/// Length.
+	auto length()
+	{
+		return payload.length;
+	}
+	/// For special element-wise operation.
+	auto opIndex()
+	{
+		return payload[];
+	}
+	/// Copy.
 	auto copy()
 	{
 		return typeof (this)(payload.dup);
 	}
+package:
+	T[] payload;
 }
+/// ditto
 auto column(T)(T[] payload)
 {
 	return ColumnVector!T(payload);
 }
 
+/// fill by 1s.
+auto ones(T)(size_t length)
+{
+	return T(1).repeat.take(length).array;
+}
+/// transposition of vector.
+auto transpose(T)(RowVector!T row)
+{
+	return row.payload.column;
+}
+/// ditto
+auto transpose(T)(ColumnVector!T column)
+{
+	return column.payload.row;
+}
+
+/// inner product
 auto product(T)(T[] x, T[] y)
 {
 	return x.zip(y)
@@ -159,6 +203,20 @@ unittest
 	assert (([0, 1, 2].column * b).payload == [0, 4, 10]);
 	assert ((a - 2 * a).payload == [0, -1, -2]);
 	assert ((b + 2 * b).payload == [9, 12, 15]);
+}
+unittest
+{
+	auto a = [0, 2, 4];
+	auto r = a.row;
+	auto c = a.column;
+	assert (r[] is c[]);
+	assert (r.length == c.length);
+}
+unittest
+{
+	auto a = [1, 2, 3].row;
+	auto b = a.length.ones!int.column;
+	assert (b.transpose * a.transpose == a * b);
 }
 
 unittest
