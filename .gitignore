@@ -6,3 +6,5 @@ __dummy.html
 dub.selections.json
 *.exe
 *.lst
+docs/app.html
+docs/package.html
