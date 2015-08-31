@@ -80,6 +80,11 @@ struct RowVector(T)
 	{
 		return typeof (this)(payload.dup);
 	}
+	import std.format;
+	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt)
+	{
+		sink.formatValue(payload, fmt);
+	}
 package:
 	T[] payload;
 }
@@ -160,6 +165,11 @@ struct ColumnVector(T)
 	auto copy()
 	{
 		return typeof (this)(payload.dup);
+	}
+	import std.format;
+	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt)
+	{
+		sink.formatValue(payload, fmt);
 	}
 package:
 	T[] payload;
