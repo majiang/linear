@@ -131,6 +131,20 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 			ret.payload ~= (this * ColumnVector!T(column)).payload;
 		return ret;
 	}
+	auto rows()
+	{
+		static if (rowMajor)
+			return majorLength;
+		else
+			return minorLength;
+	}
+	auto columns()
+	{
+		static if (rowMajor)
+			return minorLength;
+		else
+			return majorLength;
+	}
 	/// Get a row/column.
 	static if (rowMajor)
 	auto row(size_t index)
