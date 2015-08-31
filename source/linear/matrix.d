@@ -305,7 +305,7 @@ unittest
 }
 
 /// transpose a payload for matrix.
-T[][] transpose(T)(T[][] payload)
+T[][] transpose(T)(in T[][] payload)
 {
 	if (payload.empty || payload.front.empty)
 		return [];
