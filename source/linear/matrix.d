@@ -229,6 +229,11 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 	{
 		return payload;
 	}
+	import std.format;
+	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt)
+	{
+		sink.formatValue(rowMajor ? payload : payload.transpose, fmt);
+	}
 package:
 	T[][] payload;
 private:
