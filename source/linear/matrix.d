@@ -16,7 +16,7 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 	}
 	/// Zero-clearer.
 	static if (T.init != 0)
-	this ()
+	void zero()
 	{
 		foreach (row; payload)
 			row[] = 0;
@@ -27,14 +27,14 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 	{
 		payload = new T[][](rows, columns);
 		static if (T.init != 0)
-			this ();
+			zero();
 	}
 	else
 	this (size_t rows, size_t columns)
 	{
 		payload = new T[][](columns, rows);
 		static if (T.init != 0)
-			this ();
+			zero();
 	}
 	/// Addition and subtraction.
 	auto opOpAssign(string op)(typeof (this) rhs)
