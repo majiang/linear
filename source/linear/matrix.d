@@ -230,7 +230,7 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 		return payload;
 	}
 	import std.format;
-	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt)
+	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt) const
 	{
 		sink.formatValue(rowMajor ? payload : payload.transpose, fmt);
 	}
