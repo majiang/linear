@@ -81,7 +81,7 @@ struct RowVector(T)
 		return typeof (this)(payload.dup);
 	}
 	import std.format;
-	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt)
+	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt) const
 	{
 		sink.formatValue(payload, fmt);
 	}
@@ -167,7 +167,7 @@ struct ColumnVector(T)
 		return typeof (this)(payload.dup);
 	}
 	import std.format;
-	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt)
+	void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt) const
 	{
 		sink.formatValue(payload, fmt);
 	}
