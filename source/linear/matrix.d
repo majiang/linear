@@ -25,16 +25,20 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 	static if (rowMajor)
 	this (size_t rows, size_t columns)
 	{
-		payload = new T[][](rows, columns);
+		auto _payload = new T[rows * columns];
 		static if (T.init != 0)
-			zero();
+			_payload[] = 0;
+		foreach (i; 0..rows)
+			payload ~= _payload[columns * i .. columns * (i+1)];
 	}
 	else
 	this (size_t rows, size_t columns)
 	{
-		payload = new T[][](columns, rows);
+		auto _payload = new T[rows * columns];
 		static if (T.init != 0)
-			zero();
+			_payload[] = 0;
+		foreach (i; 0..columns)
+			payload ~= _payload[rows * i .. rows * (i+1)];
 	}
 	/// Addition and subtraction.
 	auto opOpAssign(string op)(typeof (this) rhs)
@@ -273,10 +277,14 @@ unittest
 {
 	Matrix!int[100] x;
 	foreach (i; 0..100)
-		x[i] = Matrix!int(1000, 1000);
-	import std.stdio;
-	stderr.writeln("...");
-	readln;
+		x[i] = Matrix!int(100000, 10);
+	debug (memoryUsage)
+	{
+		import std.stdio;
+		stderr.writeln("...");
+		readln;
+		// 724388KB -> 490412KB
+	}
 }
 unittest
 {
