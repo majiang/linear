@@ -255,17 +255,28 @@ auto matrix(RowMajor rowMajor=rowMajor, T)(T[][] payload)
 
 unittest
 {
-	auto a = [[0, 0, 0], [3, 3, 3]].matrix;
+	auto a = Matrix!(int, rowMajor)(2, 3);
+	a.payload[1][] = 3;
 	auto b = [[0, 1, 2], [0, 1, 2]].matrix;
 	assert ((a + b).payload == [[0, 1, 2], [3, 4, 5]]);
 	assert ((a - b).payload == [[0,-1,-2], [3, 2, 1]]);
 }
 unittest
 {
-	auto a = [[0, 0, 0], [3, 3, 3]].matrix!columnMajor;
+	auto a = Matrix!(int, columnMajor)(3, 2);
+	a.payload[1][] = 3;
 	auto b = [[0, 1, 2], [0, 1, 2]].matrix!columnMajor;
 	assert ((a + b).payload == [[0, 1, 2], [3, 4, 5]]);
 	assert ((a - b).payload == [[0,-1,-2], [3, 2, 1]]);
+}
+unittest
+{
+	Matrix!int[100] x;
+	foreach (i; 0..100)
+		x[i] = Matrix!int(1000, 1000);
+	import std.stdio;
+	stderr.writeln("...");
+	readln;
 }
 unittest
 {
