@@ -2,12 +2,14 @@ module linear.matrix;
 
 import linear;
 import std.typecons;
+import std.traits : Unqual;
 alias RowMajor = Flag!"RowMajor";
 enum rowMajor = RowMajor.yes, columnMajor = RowMajor.no;
 
 /** Matrix type. The layout can be chosen from row-major and column-major.
 */
 struct Matrix(T, RowMajor rowMajor=rowMajor)
+	if (is (T == Unqual!T))
 {
 	/// Initialize Matrix with given payload.
 	this (T[][] payload)
@@ -41,7 +43,7 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 			payload ~= _payload[rows * i .. rows * (i+1)];
 	}
 	/// Addition and subtraction.
-	auto opOpAssign(string op)(typeof (this) rhs)
+	auto opOpAssign(string op)(in typeof (this) rhs)
 		if (op == "+" || op == "-")
 	{
 		foreach (i, major; rhs.payload)
@@ -49,16 +51,16 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 		return this;
 	}
 	/// ditto
-	auto opBinary(string op)(typeof (this) rhs)
+	auto opBinary(string op)(in typeof (this) rhs) const
 		if (op == "+" || op == "-")
 	{
 		T[][] payload;
 		foreach (major; this.payload)
 			payload ~= major.dup;
-mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
+mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
 	}
 	/// Scaler multiplication.
-	auto opOpAssign(string op)(T rhs)
+	auto opOpAssign(string op)(in T rhs)
 		if (op == "*" || op == "/")
 	{
 		foreach (major; payload)
@@ -66,19 +68,19 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 		return this;
 	}
 	/// ditto
-	auto opBinary(string op)(T rhs)
+	auto opBinary(string op)(in T rhs) const
 		if (op == "*" || op == "/")
 	{
 		return copy.opOpAssign!op(rhs);
 	}
 	/// ditto
-	auto opBinaryRight(string op)(T lhs)
+	auto opBinaryRight(string op)(in T lhs) const
 		if (op == "*")
 	{
 		return opBinary!op(lhs);
 	}
 	/// Multiplication with vector.
-	auto opBinaryRight(string op)(RowVector!T lhs)
+	auto opBinaryRight(string op)(in RowVector!T lhs) const
 		if (op == "*" && !rowMajor)
 	{
 		RowVector!T ret;
@@ -87,18 +89,16 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 		return ret;
 	}
 	/// ditto
-	auto opBinaryRight(string op)(RowVector!T lhs)
+	auto opBinaryRight(string op)(in RowVector!T lhs) const
 		if (op == "*" && rowMajor)
 	{
-		auto ret = new T[](this.minorLength()).row;
-		static if (T.init != 0)
-			ret.payload[] = 0;
+		auto ret = RowVector!T(this.minorLength());
 		foreach (i, row; this.payload)
 			ret.payload[] += lhs.payload[i] * row[];
 		return ret;
 	}
 	/// ditto
-	auto opBinary(string op)(ColumnVector!T rhs)
+	auto opBinary(string op)(in ColumnVector!T rhs) const
 		if (op == "*" && rowMajor)
 	{
 		ColumnVector!T ret;
@@ -107,10 +107,10 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 		return ret;
 	}
 	/// ditto
-	auto opBinary(string op)(ColumnVector!T rhs)
+	auto opBinary(string op)(in ColumnVector!T rhs) const
 		if (op == "*" && !rowMajor)
 	{
-		auto ret = new T[](this.minorLength()).column;
+		auto ret = ColumnVector!T(this.minorLength());
 		static if (T.init != 0)
 			ret.payload[] = 0;
 		foreach (i, column; this.payload)
@@ -118,31 +118,33 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 		return ret;
 	}
 	/// Matrix multiplication.
-	auto opBinary(string op)(typeof (this) rhs)
+	auto opBinary(string op)(in typeof (this) rhs) const
 		if (op == "*" && rowMajor)
 	{
-		typeof (this) ret;
+		Unqual!(typeof (this)) ret;
 		foreach (row; payload)
-			ret.payload ~= (RowVector!T(row) * rhs).payload;
+			ret.payload ~= (const RowVector!T(row) * rhs).payload;
 		return ret;
 	}
 	/// ditto
-	auto opBinary(string op)(typeof (this) rhs)
+	auto opBinary(string op)(in typeof (this) rhs) const
 		if (op == "*" && !rowMajor)
 	{
-		typeof (this) ret;
+		Unqual!(typeof (this)) ret;
 		foreach (column; rhs.payload)
-			ret.payload ~= (this * ColumnVector!T(column)).payload;
+			ret.payload ~= (this * const ColumnVector!T(column)).payload;
 		return ret;
 	}
-	auto rows()
+	/// The number of rows.
+	auto rows() const
 	{
 		static if (rowMajor)
 			return majorLength;
 		else
 			return minorLength;
 	}
-	auto columns()
+	/// The number of columns.
+	auto columns() const
 	{
 		static if (rowMajor)
 			return minorLength;
@@ -151,12 +153,12 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 	}
 	/// Get a row/column.
 	static if (rowMajor)
-	auto row(size_t index)
+	auto row(in size_t index) const
 	{
 		return payload[index].row;
 	}
 	else
-	auto column(size_t index)
+	auto column(in size_t index) const
 	{
 		return payload[index].column;
 	}
@@ -205,7 +207,7 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 	}
 	/// Get a row/column.
 	static if (rowMajor)
-	auto getColumn(size_t index)
+	auto getColumn(in size_t index) const
 	{
 		T[] ret;
 		foreach (row; payload)
@@ -213,7 +215,7 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 		return ret.column;
 	}
 	else
-	auto getRow(size_t index)
+	auto getRow(in size_t index) const
 	{
 		T[] ret;
 		foreach (column; payload)
@@ -221,12 +223,12 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 		return ret.row;
 	}
 	/// deep copy.
-	auto copy()
+	auto copy() const
 	{
 		T[][] ret;
 		foreach (major; payload)
 			ret ~= major.dup;
-		return typeof (this)(ret);
+		return Unqual!(typeof (this))(ret);
 	}
 	/// For element-wise special operation.
 	auto _rawPayload()
@@ -241,11 +243,11 @@ mixin ("return (typeof (this)(payload)) "~op~"= rhs;");
 package:
 	T[][] payload;
 private:
-	size_t majorLength()
+	size_t majorLength() const
 	{
 		return payload.length;
 	}
-	size_t minorLength()
+	size_t minorLength() const
 	{
 		return majorLength ? payload.front.length : 0;
 	}
@@ -262,6 +264,8 @@ unittest
 	auto a = Matrix!(int, rowMajor)(2, 3);
 	a.payload[1][] = 3;
 	auto b = [[0, 1, 2], [0, 1, 2]].matrix;
+	assert (a.rows == b.rows);
+	assert (a.columns == b.columns);
 	assert ((a + b).payload == [[0, 1, 2], [3, 4, 5]]);
 	assert ((a - b).payload == [[0,-1,-2], [3, 2, 1]]);
 }
@@ -270,6 +274,8 @@ unittest
 	auto a = Matrix!(int, columnMajor)(3, 2);
 	a.payload[1][] = 3;
 	auto b = [[0, 1, 2], [0, 1, 2]].matrix!columnMajor;
+	assert (a.rows == b.rows);
+	assert (a.columns == b.columns);
 	assert ((a + b).payload == [[0, 1, 2], [3, 4, 5]]);
 	assert ((a - b).payload == [[0,-1,-2], [3, 2, 1]]);
 }
@@ -337,6 +343,11 @@ T[][] transpose(T)(in T[][] payload)
 
 unittest
 {
+	assert([[0, 1], [2, 3]].transpose == [[0, 2], [1, 3]]);
+}
+
+unittest
+{
 	auto a = Matrix!(int, rowMajor)(3, 5);
 	auto b = Matrix!(int, columnMajor)(5, 3);
 	assert (a.payload == b.payload);
@@ -360,14 +371,25 @@ unittest
 Scaler multiplication for rows or columns should be translated to the product with Diagonal.
 */
 struct Diagonal(T)
+	if (is (T == Unqual!T))
 {
-	/// operation as vector
-	auto opBinary(string op)(Diagonal!T rhs)
+	/// Initialize Diagonal with payload.
+	this (T[] payload)
 	{
-		return (typeof (this)(payload.dup)).opOpAssign!op(rhs);
+		this.payload = payload;
 	}
 	/// ditto
-	auto opOpAssign(string op)(Diagonal!T rhs)
+	this (in T[] payload) const
+	{
+		this.payload = payload;
+	}
+	/// operation as vector
+	auto opBinary(string op)(in Diagonal!T rhs) const
+	{
+		return (Unqual!(typeof (this))(payload.dup)).opOpAssign!op(rhs);
+	}
+	/// ditto
+	auto opOpAssign(string op)(in Diagonal!T rhs)
 		if (op == "*" || op == "/" || op == "+" || op == "-")
 	{
 		mixin ("payload[] "~op~"= rhs.payload[];");
@@ -375,35 +397,35 @@ struct Diagonal(T)
 	}
 
 	/// scaler multiplication.
-	auto opOpAssign(string op)(T rhs)
+	auto opOpAssign(string op)(in T rhs)
 		if (op == "*" || op == "/")
 	{
 		mixin ("payload[] "~op~"= rhs;");
 		return this;
 	}
 	/// ditto
-	auto opBinary(string op)(T rhs)
+	auto opBinary(string op)(in T rhs) const
 		if (op == "*" || op == "/")
 	{
 		return copy.opOpAssign!op(rhs);
 	}
 	/// ditto
-	auto opBinaryRight(string op)(T lhs)
+	auto opBinaryRight(string op)(in T lhs) const
 		if (op == "*")
 	{
 		return opBinary!op(lhs);
 	}
 	/// ditto
-	auto opBinaryRight(string op)(T lhs)
+	auto opBinaryRight(string op)(in T lhs) const
 		if (op == "/")
 	{
 		auto payload = this.payload.dup;
 		payload[] = lhs / payload[];
-		return typeof (this)(payload);
+		return Unqual!(typeof (this))(payload);
 	}
 
 	/// multiplication with vector.
-	auto opBinaryRight(string op)(RowVector!T lhs)
+	auto opBinaryRight(string op)(in RowVector!T lhs) const
 		if (op == "*")
 	{
 		auto ret = lhs.copy;
@@ -411,7 +433,7 @@ struct Diagonal(T)
 		return ret;
 	}
 	/// ditto
-	auto opBinary(string op)(ColumnVector!T rhs)
+	auto opBinary(string op)(in ColumnVector!T rhs) const
 		if (op == "*")
 	{
 		auto ret = rhs.copy;
@@ -420,7 +442,7 @@ struct Diagonal(T)
 	}
 
 	/// multiplication with matrix
-	auto opBinary(string op)(Matrix!(T, rowMajor) matrix)
+	auto opBinary(string op)(in Matrix!(T, rowMajor) matrix) const
 	{
 		auto payload = new T[][](matrix.majorLength, matrix.minorLength);
 		foreach (i, row; matrix.payload)
@@ -428,7 +450,7 @@ struct Diagonal(T)
 		return Matrix!(T, rowMajor)(payload);
 	}
 	/// ditto
-	auto opBinary(string op)(Matrix!(T, columnMajor) matrix)
+	auto opBinary(string op)(in Matrix!(T, columnMajor) matrix) const
 	{
 		auto payload = new T[][](matrix.majorLength, matrix.minorLength);
 		foreach (i, column; matrix.payload)
@@ -436,7 +458,7 @@ struct Diagonal(T)
 		return Matrix!(T, columnMajor)(payload);
 	}
 	/// ditto
-	auto opBinaryRight(string op)(Matrix!(T, columnMajor) matrix)
+	auto opBinaryRight(string op)(in Matrix!(T, columnMajor) matrix) const
 	{
 		auto payload = new T[][](matrix.majorLength, matrix.minorLength);
 		foreach (i, column; matrix.payload)
@@ -444,7 +466,7 @@ struct Diagonal(T)
 		return Matrix!(T, columnMajor)(payload);
 	}
 	/// ditto
-	auto opBinaryRight(string op)(Matrix!(T, rowMajor) matrix)
+	auto opBinaryRight(string op)(in Matrix!(T, rowMajor) matrix) const
 	{
 		auto payload = new T[][](matrix.majorLength, matrix.minorLength);
 		foreach (i, row; matrix.payload)
@@ -453,19 +475,35 @@ struct Diagonal(T)
 	}
 package:
 	T[] payload;
-	auto copy()
+	auto copy() const
 	{
-		return typeof (this)(payload.dup);
+		return Unqual!(typeof (this))(payload.dup);
 	}
 }
 
 /// ditto
+auto diagonal(T)(in T[] payload)
+{
+	return const Diagonal!T(payload);
+}
+/// ditto
 auto diagonal(T)(T[] payload)
+	if (is (T == Unqual!T))
 {
 	return Diagonal!T(payload);
 }
+unittest
+{
+	int[] x;
+	const int[] y;
+	const(int)[] z;
+	static assert (is (typeof (x.diagonal) == Diagonal!int));
+	static assert (is (typeof (y.diagonal) == const Diagonal!int));
+	static assert (is (typeof (z.diagonal) == const Diagonal!int));
+}
+
 /// ditto
-auto diagonal(V)(V vector)
+auto diagonal(V)(in V vector)
 	if (is (V : RowVector!T, T) ||
 		is (V : ColumnVector!T, T))
 {
