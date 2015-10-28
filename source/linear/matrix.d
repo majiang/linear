@@ -548,6 +548,32 @@ unittest
 	assert (a.payload == [60, 30, 20, 15]);
 }
 
+/// Matrix.opOpAssignRight
+void multiplyFromLeft(T, MatrixType)(MatrixType matrix, in Diagonal!T diagonal)
+	if (is (MatrixType == Matrix!(T, rowMajor)))
+{
+	foreach (i, row; matrix.payload)
+		row[] *= diagonal.payload[i];
+}
+/// ditto
+void multiplyFromLeft(T, MatrixType)(MatrixType matrix, in Diagonal!T diagonal)
+	if (is (MatrixType == Matrix!(T, columnMajor)))
+{
+	foreach (row; matrix.payload)
+		row[] *= diagonal.payload[];
+}
+
+unittest
+{
+	auto a = Matrix!(int, rowMajor)([[1, 2], [3, 4]]);
+	auto b = Matrix!(int, columnMajor)([[1, 3], [2, 4]]);
+	const c = [5, 6];
+	a.multiplyFromLeft(c.diagonal);
+	assert (a.payload == [[5, 10], [18, 24]]);
+	b.multiplyFromLeft(c.diagonal);
+	assert (b.payload == [[5, 18], [10, 24]]);
+}
+
 unittest
 {
 	import std.stdio;
