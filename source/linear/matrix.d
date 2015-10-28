@@ -26,7 +26,8 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 		foreach (i; 0..rows)
 			payload ~= _payload[columns * i .. columns * (i+1)];
 	}
-	else
+	/// ditto
+	static if (!rowMajor)
 	this (size_t rows, size_t columns)
 	{
 		auto _payload = new T[rows * columns];
@@ -146,12 +147,13 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
 	}
 	/// Get a row/column.
 	static if (rowMajor)
-	auto row(in size_t index) const
+	auto row(in size_t index) inout
 	{
 		return payload[index].row;
 	}
-	else
-	auto column(in size_t index) const
+	/// ditto
+	static if (!rowMajor)
+	auto column(in size_t index) inout
 	{
 		return payload[index].column;
 	}
@@ -177,7 +179,8 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
 		}
 		return R(payload);
 	}
-	else
+	/// ditto
+	static if (!rowMajor)
 	auto byColumn()
 	{
 		struct R
@@ -207,7 +210,8 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
 			ret ~= row[index];
 		return ret.column;
 	}
-	else
+	/// ditto
+	static if (!rowMajor)
 	auto getRow(in size_t index) const
 	{
 		T[] ret;
@@ -488,7 +492,7 @@ unittest
 }
 
 /// ditto
-auto diagonal(V)(in V vector)
+auto diagonal(V)(inout V vector)
 	if (is (V : RowVector!T, T) ||
 		is (V : ColumnVector!T, T))
 {

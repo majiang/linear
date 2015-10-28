@@ -14,12 +14,8 @@
 <dd>Initialize Matrix with given <i>payload</i>.<br><br>
 
 </dd>
-<dt><big><a name="Matrix.zero"></a>void <u>zero</u>();
-</big></dt>
-<dd>Zero-clearer.<br><br>
-
-</dd>
 <dt><big><a name="Matrix.this.2"></a>this(size_t <i>rows</i>, size_t <i>columns</i>);
+<br>this(size_t <i>rows</i>, size_t <i>columns</i>);
 </big></dt>
 <dd>Initialize zero Matrix with specified <i>rows</i> and <i>columns</i>;<br><br>
 
@@ -61,17 +57,20 @@
 <dd>The number of <u>columns</u>.<br><br>
 
 </dd>
-<dt><big><a name="Matrix.row"></a>const auto <u>row</u>(in size_t <i>index</i>);
+<dt><big><a name="Matrix.row"></a>inout auto <u>row</u>(in size_t <i>index</i>);
+<br><a name="Matrix.column"></a>inout auto <u>column</u>(in size_t <i>index</i>);
 </big></dt>
-<dd>Get a <u>row</u>/column.<br><br>
+<dd>Get a <u>row</u>/<u>column</u>.<br><br>
 
 </dd>
 <dt><big><a name="Matrix.byRow"></a>auto <u>byRow</u>();
+<br><a name="Matrix.byColumn"></a>auto <u>byColumn</u>();
 </big></dt>
 <dd>Iterate over rows/columns.<br><br>
 
 </dd>
 <dt><big><a name="Matrix.getColumn"></a>const auto <u>getColumn</u>(in size_t <i>index</i>);
+<br><a name="Matrix.getRow"></a>const auto <u>getRow</u>(in size_t <i>index</i>);
 </big></dt>
 <dd>Get a row/column.<br><br>
 
@@ -99,16 +98,14 @@
 
 </dd>
 <dt><big><a name="Diagonal"></a>struct <u>Diagonal</u>(T) if (is(T == Unqual!T));
-<br><a name="diagonal"></a>auto <u>diagonal</u>(T)(in T[] <i>payload</i>);
-<br>auto <u>diagonal</u>(T)(T[] <i>payload</i>) if (is(T == Unqual!T));
-<br>auto <u>diagonal</u>(V)(in V <i>vector</i>) if (is(V : RowVector!T, T) || is(V : ColumnVector!T, T));
+<br><a name="diagonal"></a>inout(Diagonal!T) <u>diagonal</u>(T)(inout T[] <i>payload</i>) if (is(T == Unqual!T));
+<br>auto <u>diagonal</u>(V)(inout V <i>vector</i>) if (is(V : RowVector!T, T) || is(V : ColumnVector!T, T));
 </big></dt>
 <dd><u>Diagonal</u> matrix type.
 <br><br>
 Scaler multiplication for rows or columns should be translated to the product with <u>Diagonal</u>.<br><br>
 
-<dl><dt><big><a name="Diagonal.this"></a>this(T[] <i>payload</i>);
-<br>const this(in T[] <i>payload</i>);
+<dl><dt><big><a name="Diagonal.this"></a>inout this(inout T[] <i>payload</i>);
 </big></dt>
 <dd>Initialize Diagonal with <i>payload</i>.<br><br>
 
