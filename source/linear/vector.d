@@ -14,12 +14,7 @@ struct RowVector(T)
 			this.payload[] = 0;
 	}
 	/// Initialize RowVector with payload.
-	this (T[] payload)
-	{
-		this.payload = payload;
-	}
-	/// ditto
-	this (in T[] payload) const
+	this (inout T[] payload) inout
 	{
 		this.payload = payload;
 	}
@@ -90,12 +85,7 @@ struct RowVector(T)
 		return payload.length;
 	}
 	/// For special element-wise operation.
-	auto opIndex() const
-	{
-		return payload;
-	}
-	/// ditto
-	auto opIndex()
+	inout(T[]) opIndex() inout
 	{
 		return payload;
 	}
@@ -113,15 +103,10 @@ package:
 	T[] payload;
 }
 /// ditto
-auto row(T)(in T[] payload)
-{
-	return const RowVector!T(payload);
-}
-/// ditto
-auto row(T)(T[] payload)
+inout(RowVector!T) row(T)(inout T[] payload)
 	if (is (T == Unqual!T))
 {
-	return RowVector!T(payload);
+	return inout RowVector!T(payload);
 }
 unittest
 {
@@ -131,6 +116,10 @@ unittest
 	static assert (is (typeof (x.row) == RowVector!int));
 	static assert (is (typeof (y.row) == const RowVector!int));
 	static assert (is (typeof (z.row) == const RowVector!int));
+	auto xs = x.row[], ys = y.row[], zs = z.row[];
+	static assert (is (typeof (xs) == int[]));
+	static assert (is (typeof (ys) == const(int[])));
+	static assert (is (typeof (zs) == const(int[])));
 }
 
 /// Column vector.
@@ -145,12 +134,7 @@ struct ColumnVector(T)
 			this.payload[] = 0;
 	}
 	/// Initialize ColumnVector with payload.
-	this (T[] payload)
-	{
-		this.payload = payload;
-	}
-	/// Initialize ColumnVector with payload.
-	this (in T[] payload) const
+	this (inout T[] payload) inout
 	{
 		this.payload = payload;
 	}
@@ -214,12 +198,7 @@ struct ColumnVector(T)
 		return payload.length;
 	}
 	/// For special element-wise operation.
-	auto opIndex() const
-	{
-		return payload;
-	}
-	/// ditto
-	auto opIndex()
+	inout(T[]) opIndex() inout
 	{
 		return payload;
 	}
@@ -237,15 +216,10 @@ package:
 	T[] payload;
 }
 /// ditto
-auto column(T)(in T[] payload)
-{
-	return const ColumnVector!T(payload);
-}
-/// ditto
-auto column(T)(T[] payload)
+inout(ColumnVector!T) column(T)(inout T[] payload)
 	if (is (T == Unqual!T))
 {
-	return ColumnVector!T(payload);
+	return inout ColumnVector!T(payload);
 }
 unittest
 {
@@ -255,6 +229,10 @@ unittest
 	static assert (is (typeof (x.column) == ColumnVector!int));
 	static assert (is (typeof (y.column) == const ColumnVector!int));
 	static assert (is (typeof (z.column) == const ColumnVector!int));
+	auto xs = x.column[], ys = y.column[], zs = z.column[];
+	static assert (is (typeof (xs) == int[]));
+	static assert (is (typeof (ys) == const(int[])));
+	static assert (is (typeof (zs) == const(int[])));
 }
 
 /// fill by 1s.

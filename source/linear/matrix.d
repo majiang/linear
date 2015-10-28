@@ -16,13 +16,6 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 	{
 		this.payload = payload;
 	}
-	/// Zero-clearer.
-	static if (T.init != 0)
-	void zero()
-	{
-		foreach (row; payload)
-			row[] = 0;
-	}
 	/// Initialize zero Matrix with specified rows and columns;
 	static if (rowMajor)
 	this (size_t rows, size_t columns)
@@ -261,6 +254,11 @@ auto matrix(RowMajor rowMajor=rowMajor, T)(T[][] payload)
 
 unittest
 {
+	auto a = Matrix!double(1, 1);
+	assert (a.payload == [[0.0]]);
+}
+unittest
+{
 	auto a = Matrix!(int, rowMajor)(2, 3);
 	a.payload[1][] = 3;
 	auto b = [[0, 1, 2], [0, 1, 2]].matrix;
@@ -279,18 +277,15 @@ unittest
 	assert ((a + b).payload == [[0, 1, 2], [3, 4, 5]]);
 	assert ((a - b).payload == [[0,-1,-2], [3, 2, 1]]);
 }
-unittest
+debug (memoryUsage) unittest
 {
 	Matrix!int[100] x;
 	foreach (i; 0..100)
 		x[i] = Matrix!int(100000, 10);
-	debug (memoryUsage)
-	{
-		import std.stdio;
-		stderr.writeln("...");
-		readln;
-		// 724388KB -> 490412KB
-	}
+	import std.stdio;
+	stderr.writeln("...");
+	readln;
+	// 724388KB -> 490412KB
 }
 unittest
 {
@@ -374,12 +369,7 @@ struct Diagonal(T)
 	if (is (T == Unqual!T))
 {
 	/// Initialize Diagonal with payload.
-	this (T[] payload)
-	{
-		this.payload = payload;
-	}
-	/// ditto
-	this (in T[] payload) const
+	this (inout T[] payload) inout
 	{
 		this.payload = payload;
 	}
@@ -482,15 +472,10 @@ package:
 }
 
 /// ditto
-auto diagonal(T)(in T[] payload)
-{
-	return const Diagonal!T(payload);
-}
-/// ditto
-auto diagonal(T)(T[] payload)
+inout(Diagonal!T) diagonal(T)(inout T[] payload)
 	if (is (T == Unqual!T))
 {
-	return Diagonal!T(payload);
+	return inout Diagonal!T(payload);
 }
 unittest
 {
