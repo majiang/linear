@@ -155,6 +155,50 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
         else
             return majorLength;
     }
+    /// dollar operator.
+    auto opDollar(size_t dimension)() const
+        if (dimension < 2)
+    {
+        static if (dimension == 0)
+            return rows;
+        else
+            return columns;
+    }
+    Tuple!(size_t, size_t) opSlice(size_t dimension)(in size_t min, in size_t max) const
+        if (dimension < 2)
+    in
+    {
+        assert (min <= max);
+        static if (dimension == 0)
+            assert (max <= rows);
+        else
+            assert (max <= columns);
+    }
+    body
+    {
+        return min.tuple!(size_t, size_t)(max);
+    }
+    RowVector!T opIndex(size_t i, Tuple!(size_t, size_t) jrange) const
+    {
+        static if (rowMajor)
+            return row(i)[jrange[0]..jrange[1]];
+        else
+            return getRow(i)[jrange[0]..jrange[1]];
+    }
+    ColumnVector!T opIndex(Tuple!(size_t, size_t) irange, size_t j) const
+    {
+        static if (!rowMajor)
+            return column(j)[irange[0]..irange[1]];
+        else
+            return getColumn(j)[irange[0]..irange[1]];
+    }
+    Matrix!(T, rowMajor) opIndex(Tuple!(size_t, size_t) irange, Tuple!(size_t, size_t) jrange) const
+    {
+        static if (rowMajor)
+            return payload.minor(irange[0], irange[1], jrange[0], jrange[1]).matrix;
+        else
+            return payload.minor(jrange[0], jrange[1], irange[0], irange[1]).matrix!columnMajor;
+    }
     /// Get a row/column.
     static if (rowMajor)
     auto row(in size_t index) inout
@@ -389,6 +433,14 @@ unittest
     const q = b;
     assert (p[0, 1] == 1);
     assert (q[0, 1] == 1);
+}
+unittest
+{
+    auto a = [[0, 1, 2], [3, 4, 5], [6, 7, 8]].matrix;
+    assert (a[0, 0] == 0);
+    assert (a[0, 1..$] == [1, 2].row);
+    assert (a[1..$, 1..$] == [[4, 5], [7, 8]].matrix);
+    assert (a[1..$, 0] == [3, 6].column);
 }
 
 /// transpose a payload for matrix.
@@ -635,6 +687,30 @@ unittest
     assert (a.payload == [[5, 10], [18, 24]]);
     b.multiplyFromLeft(c.diagonal);
     assert (b.payload == [[5, 18], [10, 24]]);
+}
+
+private T[][] minor(T)(in T[][] arr, size_t imin, size_t imax, size_t jmin, size_t jmax)
+in
+{
+    assert (imax <= arr.length);
+    if (arr.length)
+        assert (jmax <= arr[0].length);
+    assert (imin <= imax);
+    assert (jmin <= jmax);
+}
+body
+{
+    T[][] ret;
+    foreach (i; imin..imax)
+        ret ~= arr[i][jmin .. jmax].dup;
+    return ret;
+}
+unittest
+{
+    auto a = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
+    assert (a.minor(0, 3, 0, 3) == a);
+    assert (a.minor(0, 2, 0, 2) == [[0, 1], [3, 4]]);
+    assert (a.minor(2, 3, 2, 3) == [[8]]);
 }
 
 unittest

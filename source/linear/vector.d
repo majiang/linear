@@ -1,6 +1,7 @@
 module linear.vector;
 import linear;
 import std.traits : Unqual;
+import std.typecons : Tuple, tuple;
 
 /// Row vector.
 struct RowVector(T)
@@ -88,6 +89,17 @@ struct RowVector(T)
     inout(T[]) opIndex() inout
     {
         return payload;
+    }
+    /// Slice operation.
+    RowVector!T opSlice(in size_t i, in size_t j) const
+    in
+    {
+        assert (i <= j);
+        assert (j <= payload.length);
+    }
+    body
+    {
+        return payload[i..j].dup.row;
     }
     /// Deep copy.
     auto copy() const
@@ -201,6 +213,17 @@ struct ColumnVector(T)
     inout(T[]) opIndex() inout
     {
         return payload;
+    }
+    /// Slice operation.
+    ColumnVector!T opSlice(in size_t i, in size_t j) const
+    in
+    {
+        assert (i <= j);
+        assert (j <= payload.length);
+    }
+    body
+    {
+        return payload[i..j].dup.column;
     }
     /// Deep copy.
     auto copy() const
