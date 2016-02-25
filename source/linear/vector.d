@@ -263,6 +263,11 @@ auto transpose(T)(ColumnVector!T column)
 
 /// inner product
 auto product(T)(T[] x, T[] y)
+in
+{
+    assert (x.length == y.length);
+}
+body
 {
     return x.zip(y)
         .map!(a => a[0] * a[1])

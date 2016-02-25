@@ -85,6 +85,11 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     /// ditto
     auto opBinaryRight(string op)(in RowVector!T lhs) const
         if (op == "*" && rowMajor)
+    in
+    {
+        assert (payload.length == lhs.payload.length);
+    }
+    body
     {
         auto ret = RowVector!T(this.minorLength());
         foreach (i, row; this.payload)
@@ -103,6 +108,11 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     /// ditto
     auto opBinary(string op)(in ColumnVector!T rhs) const
         if (op == "*" && !rowMajor)
+    in
+    {
+        assert (payload.length == rhs.payload.length);
+    }
+    body
     {
         auto ret = ColumnVector!T(this.minorLength());
         static if (T.init != 0)
@@ -219,6 +229,16 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
             ret ~= column[index];
         return ret.row;
     }
+    /// O(1) transposition.
+    auto transpose()
+    {
+        return Matrix!(T, cast(RowMajor)(!rowMajor))(payload);
+    }
+    /// O(rc) transposition.
+    auto deepTranspose() const
+    {
+        return Matrix!(T, rowMajor)(payload.transpose);
+    }
     /// deep copy.
     auto copy() const
     {
@@ -231,6 +251,14 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     auto _rawPayload()
     {
         return payload;
+    }
+    /// ditto
+    auto ref inout(T) opIndex(size_t i, size_t j) inout
+    {
+        static if (rowMajor)
+            return payload[i][j];
+        else
+            return payload[j][i];
     }
     import std.format;
     void toString(scope void delegate(const(char)[]) sink, FormatSpec!char fmt) const
@@ -326,6 +354,41 @@ unittest
     auto a = [[0, 1, 2], [3, 4, 5]].matrix!columnMajor;
     auto b = [[6, 7], [8, 9], [10, 11]].matrix!columnMajor;
     assert ((a * b).payload == [[21, 34, 47], [27, 44, 61], [33, 54, 75]]);
+}
+unittest
+{
+    import std.exception, core.exception;
+    auto a = [[0, 1], [2, 3]].matrix;
+    auto b = [[0, 1, 2], [3, 4, 5]].matrix;
+    auto c = [[0, 1, 2], [3, 4, 5], [6, 7, 8]].matrix;
+    assert ((a * b * c).payload == [[42, 54, 66], [156, 198, 240]]);
+    assertThrown!AssertError(b * a);
+    assertThrown!AssertError(c * b);
+    auto p = c.transpose;
+    auto q = b.transpose;
+    auto r = a.transpose;
+    assert ((p * q * r).payload == [[42, 54, 66], [156, 198, 240]]);
+    assertThrown!AssertError(q * p);
+    assertThrown!AssertError(r * q);
+    a = a.deepTranspose;
+    b = b.deepTranspose;
+    c = c.deepTranspose;
+    assert ((c * b * a).payload == [[42, 156], [54, 198], [66, 240]]);
+    assertThrown!AssertError(a * b);
+    assertThrown!AssertError(b * c);
+}
+unittest
+{
+    auto a = [[0, 0], [0, 0]].matrix;
+    auto b = [[0, 0], [0, 0]].matrix!columnMajor;
+    a[0, 1] = 1;
+    b[0, 1] = 1;
+    assert (a.payload[0][1] == 1);
+    assert (b.payload[1][0] == 1);
+    const p = a;
+    const q = b;
+    assert (p[0, 1] == 1);
+    assert (q[0, 1] == 1);
 }
 
 /// transpose a payload for matrix.
