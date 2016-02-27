@@ -292,9 +292,8 @@ in
 }
 body
 {
-    return x.zip(y)
-        .map!(a => a[0] * a[1])
-        .reduce!((a, b) => a + b);
+    return T(0).reduce!((a, b) => a + b)
+        (x.zip(y).map!(a => a[0] * a[1]));
 }
 
 unittest
@@ -321,6 +320,18 @@ unittest
     auto b = a.length.ones!int.column;
     assert (b.transpose * a.transpose == a * b);
     assert ((cast(const)b).transpose * (cast(const)a).transpose == a * b);
+}
+
+bool approxEqual(Vector)(Vector a, Vector b)
+    if (is (Vector == RowVector!T, T) || is (Vector == ColumnVector!T, T))
+in
+{
+    assert (a.length == b.length);
+}
+body
+{
+    import std.math : eq = approxEqual;
+    return a.payload.zip(b.payload).all!(p => p[0].eq(p[1]));
 }
 
 unittest

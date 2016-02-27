@@ -57,6 +57,11 @@
 <dd>The number of <u>columns</u>.<br><br>
 
 </dd>
+<dt><big><a name="Matrix.opDollar"></a>const auto <u>opDollar</u>(size_t dimension)() if (dimension &lt; 2);
+</big></dt>
+<dd>dollar operator.<br><br>
+
+</dd>
 <dt><big><a name="Matrix.row"></a>inout auto <u>row</u>(in size_t <i>index</i>);
 <br><a name="Matrix.column"></a>inout auto <u>column</u>(in size_t <i>index</i>);
 </big></dt>
@@ -75,12 +80,23 @@
 <dd>Get a row/column.<br><br>
 
 </dd>
+<dt><big><a name="Matrix.transpose"></a>auto <u>transpose</u>();
+</big></dt>
+<dd>O(1) transposition.<br><br>
+
+</dd>
+<dt><big><a name="Matrix.deepTranspose"></a>const auto <u>deepTranspose</u>();
+</big></dt>
+<dd>O(rc) transposition.<br><br>
+
+</dd>
 <dt><big><a name="Matrix.copy"></a>const auto <u>copy</u>();
 </big></dt>
 <dd>deep <u>copy</u>.<br><br>
 
 </dd>
 <dt><big><a name="Matrix._rawPayload"></a>auto <u>_rawPayload</u>();
+<br><a name="Matrix.opIndex"></a>inout ref inout(T) <u>opIndex</u>(size_t <i>i</i>, size_t <i>j</i>);
 </big></dt>
 <dd>For element-wise special operation.<br><br>
 
@@ -130,10 +146,10 @@ Scaler multiplication for rows or columns should be translated to the product wi
 <dd>multiplication with vector.<br><br>
 
 </dd>
-<dt><big><a name="Diagonal.opBinary.4"></a>const auto <u>opBinary</u>(string op)(in Matrix!(T, rowMajor) <i>matrix</i>);
-<br>const auto <u>opBinary</u>(string op)(in Matrix!(T, columnMajor) <i>matrix</i>);
-<br><a name="Diagonal.opBinaryRight.3"></a>const auto <u>opBinaryRight</u>(string op)(in Matrix!(T, columnMajor) <i>matrix</i>);
-<br>const auto <u>opBinaryRight</u>(string op)(in Matrix!(T, rowMajor) <i>matrix</i>);
+<dt><big><a name="Diagonal.opBinary.4"></a>const auto <u>opBinary</u>(string op)(in Matrix!(T, rowMajor) <i>matrix</i>) if (op == "*");
+<br>const auto <u>opBinary</u>(string op)(in Matrix!(T, columnMajor) <i>matrix</i>) if (op == "*");
+<br><a name="Diagonal.opBinaryRight.3"></a>const auto <u>opBinaryRight</u>(string op)(in Matrix!(T, columnMajor) <i>matrix</i>) if (op == "*" || op == "/");
+<br>const auto <u>opBinaryRight</u>(string op)(in Matrix!(T, rowMajor) <i>matrix</i>) if (op == "*" || op == "/");
 </big></dt>
 <dd>multiplication with <i>matrix</i><br><br>
 

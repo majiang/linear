@@ -11,6 +11,7 @@ enum rowMajor = RowMajor.yes, columnMajor = RowMajor.no;
 struct Matrix(T, RowMajor rowMajor=rowMajor)
     if (is (T == Unqual!T))
 {
+    alias Element = T;
     /// Initialize Matrix with given payload.
     this (T[][] payload)
     {
@@ -273,6 +274,11 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
             ret ~= column[index];
         return ret.row;
     }
+    Diagonal!T diagonal()
+    {
+        return rows.min(columns).iota.map!(i =>
+            payload[i][i]).array.diagonal;
+    }
     /// O(1) transposition.
     auto transpose()
     {
@@ -443,6 +449,35 @@ unittest
     assert (a[1..$, 0] == [3, 6].column);
 }
 
+bool approxEqual(MatrixType)(MatrixType A, MatrixType B)
+    if (is (MatrixType == Matrix!(T, layout), T, RowMajor layout))
+in
+{
+    assert (A.rows == B.rows);
+    assert (A.columns == B.columns);
+}
+body
+{
+    import std.math : eq = approxEqual;
+    foreach (i, row; A.payload)
+        foreach (j, elem; row)
+            if (!elem.eq(B.payload[i][j]))
+                return false;
+    return true;
+}
+
+auto timesAdjoint(MatrixType)(MatrixType A)
+    if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
+{
+    return A * A.deepTranspose;
+}
+
+auto adjointTimes(MatrixType)(MatrixType A)
+    if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
+{
+    return A.deepTranspose * A;
+}
+
 /// transpose a payload for matrix.
 T[][] transpose(T)(in T[][] payload)
 {
@@ -492,6 +527,14 @@ struct Diagonal(T)
     {
         this.payload = payload;
     }
+    size_t rows() const
+    {
+        return payload.length;
+    }
+    size_t columns() const
+    {
+        return payload.length;
+    }
     /// operation as vector
     auto opBinary(string op)(in Diagonal!T rhs) const
     {
@@ -537,6 +580,7 @@ struct Diagonal(T)
     auto opBinaryRight(string op)(in RowVector!T lhs) const
         if (op == "*")
     {
+        assert (this.payload.length == lhs.payload.length);
         auto ret = lhs.copy;
         ret.payload[] *= payload[];
         return ret;
@@ -545,6 +589,7 @@ struct Diagonal(T)
     auto opBinary(string op)(in ColumnVector!T rhs) const
         if (op == "*")
     {
+        assert (this.payload.length == rhs.payload.length);
         auto ret = rhs.copy;
         ret.payload[] *= payload[];
         return ret;
@@ -552,7 +597,9 @@ struct Diagonal(T)
 
     /// multiplication with matrix
     auto opBinary(string op)(in Matrix!(T, rowMajor) matrix) const
+        if (op == "*")
     {
+        assert (this.payload.length == matrix.rows);
         auto payload = new T[][](matrix.majorLength, matrix.minorLength);
         foreach (i, row; matrix.payload)
             payload[i][] = row[] * this.payload[i];
@@ -560,7 +607,9 @@ struct Diagonal(T)
     }
     /// ditto
     auto opBinary(string op)(in Matrix!(T, columnMajor) matrix) const
+        if (op == "*")
     {
+        assert (this.payload.length == matrix.rows);
         auto payload = new T[][](matrix.majorLength, matrix.minorLength);
         foreach (i, column; matrix.payload)
             payload[i][] = this.payload[] * column[];
@@ -568,18 +617,22 @@ struct Diagonal(T)
     }
     /// ditto
     auto opBinaryRight(string op)(in Matrix!(T, columnMajor) matrix) const
+        if (op == "*" || op == "/")
     {
+        assert (this.payload.length == matrix.columns);
         auto payload = new T[][](matrix.majorLength, matrix.minorLength);
         foreach (i, column; matrix.payload)
-            payload[i][] = this.payload[i] * column[];
+    mixin ("payload[i][] = column[] "~op~" this.payload[i];");
         return Matrix!(T, columnMajor)(payload);
     }
     /// ditto
     auto opBinaryRight(string op)(in Matrix!(T, rowMajor) matrix) const
+        if (op == "*" || op == "/")
     {
+        assert (this.payload.length == matrix.columns);
         auto payload = new T[][](matrix.majorLength, matrix.minorLength);
         foreach (i, row; matrix.payload)
-            payload[i][] = row[] * this.payload[];
+    mixin ("payload[i][] = row[] "~op~" this.payload[];");
         return Matrix!(T, rowMajor)(payload);
     }
 package:
