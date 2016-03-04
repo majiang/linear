@@ -1,8 +1,9 @@
 module linear.svd;
 
 import linear;
-import std.math : sqrt, eq = approxEqual;
+import std.math : sqrt, abs, isNaN, eq = approxEqual;
 import std.numeric : dotProduct;
+debug (sval) import std.stdio;
 version (unittest) import std.stdio;
 
 /** Singular value decomposition.
@@ -51,23 +52,33 @@ body
 }
 
 /// Singular values of a matrix.
-auto singularValues(MatrixType)(MatrixType A)
+auto singularValues(MatrixType)(MatrixType A, real eps = 1e-20)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
 {
-    if (A.rows > A.columns)
-        A = A.adjointTimes;
-    else
-        A = A.timesAdjoint;
-    foreach (i; 0..10)
+    A = A.smallSquare;
+    auto diff = MatrixType.Element.infinity;
+    while (eps < diff)
     {
         auto L = A.choleskyBanachiewicz;
+        auto old = A.diagonal;
         A = L.adjointTimes;
+        diff = A.diagonal.distanceL!1(old);
+        debug (sval) stderr.writefln("error = %e", diff);
     }
     auto ret = A.diagonal;
     foreach (ref elem; ret.payload)
         elem = elem.sqrt;
     ret.payload.sort!((a, b) => a > b);
     return ret;
+}
+
+private real distanceL(real p, T)(Diagonal!T lhs, Diagonal!T rhs)
+{
+    auto ret = real(0);
+    assert (lhs.size == rhs.size);
+    foreach (x; lhs.payload.zip(rhs.payload))
+        ret += (x[0] - x[1]).abs ^^ p;
+    return ret ^^ (1 / p);
 }
 
 auto eigenvectors(MatrixType, U)(MatrixType A, U[] eigenvalues)
