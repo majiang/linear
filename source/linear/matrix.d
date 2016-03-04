@@ -3,6 +3,7 @@ module linear.matrix;
 import linear;
 import std.typecons;
 import std.traits : Unqual;
+import std.string : format;
 alias RowMajor = Flag!"RowMajor";
 enum rowMajor = RowMajor.yes, columnMajor = RowMajor.no;
 
@@ -13,7 +14,13 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
 {
     alias Element = T;
     /// Initialize Matrix with given payload.
-    this (T[][] payload)
+    this (inout T[][] payload) inout
+    in
+    {
+        assert (payload.length);
+        assert (payload[0].length);
+    }
+    body
     {
         this.payload = payload;
     }
@@ -40,6 +47,13 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
     /// Addition and subtraction.
     auto opOpAssign(string op)(in typeof (this) rhs)
         if (op == "+" || op == "-")
+    in
+    {
+        assert (this.rows == rhs.rows && this.columns == rhs.columns,
+            "Matrix dimension mismatch: [%d*%d] %s [%d*%d]".format(
+                this.rows, this.columns, op, rhs.rows, rhs.columns));
+    }
+    body
     {
         foreach (i, major; rhs.payload)
     mixin ("payload[i][] "~op~"= major[];");
@@ -48,6 +62,13 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
     /// ditto
     auto opBinary(string op)(in typeof (this) rhs) const
         if (op == "+" || op == "-")
+    in
+    {
+        assert (this.rows == rhs.rows && this.columns == rhs.columns,
+            "Matrix dimension mismatch: [%d*%d] %s [%d*%d]".format(
+                this.rows, this.columns, op, rhs.rows, rhs.columns));
+    }
+    body
     {
         T[][] payload;
         foreach (major; this.payload)
@@ -77,6 +98,13 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     /// Multiplication with vector.
     auto opBinaryRight(string op)(in RowVector!T lhs) const
         if (op == "*" && !rowMajor)
+    in
+    {
+        assert (lhs.length == this.rows,
+            "Matrix dimension mismatch: [row %d] %s [%d*%d]".format(
+                lhs.length, op, rows, columns));
+    }
+    body
     {
         RowVector!T ret;
         foreach (column; this.payload)
@@ -88,7 +116,9 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
         if (op == "*" && rowMajor)
     in
     {
-        assert (payload.length == lhs.payload.length);
+        assert (lhs.length == rows,
+            "Matrix dimension mismatch: [row %d] %s [%d*%d]".format(
+                lhs.length, op, rows, columns));
     }
     body
     {
@@ -100,6 +130,13 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     /// ditto
     auto opBinary(string op)(in ColumnVector!T rhs) const
         if (op == "*" && rowMajor)
+    in
+    {
+        assert (columns == rhs.length,
+            "Matrix dimension mismatch: [%d*%d] %s [col %d]".format(
+                rows, columns, op, rhs.length));
+    }
+    body
     {
         ColumnVector!T ret;
         foreach (row; this.payload)
@@ -111,7 +148,9 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
         if (op == "*" && !rowMajor)
     in
     {
-        assert (payload.length == rhs.payload.length);
+        assert (columns == rhs.length,
+            "Matrix dimension mismatch: [%d*%d] %s [col %d]".format(
+                rows, columns, op, rhs.length));
     }
     body
     {
@@ -125,6 +164,13 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     /// Matrix multiplication.
     auto opBinary(string op)(in typeof (this) rhs) const
         if (op == "*" && rowMajor)
+    in
+    {
+        assert (this.columns == rhs.rows,
+            "Matrix dimension mismatch: [%d*%d] %s [%d*%d]".format(
+                this.rows, this.columns, op, rhs.rows, rhs.columns));
+    }
+    body
     {
         Unqual!(typeof (this)) ret;
         foreach (row; payload)
@@ -134,6 +180,13 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     /// ditto
     auto opBinary(string op)(in typeof (this) rhs) const
         if (op == "*" && !rowMajor)
+    in
+    {
+        assert (this.columns == rhs.rows,
+            "Matrix dimension mismatch: [%d*%d] %s [%d*%d]".format(
+                this.rows, this.columns, op, rhs.rows, rhs.columns));
+    }
+    body
     {
         Unqual!(typeof (this)) ret;
         foreach (column; rhs.payload)
@@ -258,7 +311,7 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     }
     /// Get a row/column.
     static if (rowMajor)
-    auto getColumn(in size_t index) const
+    ColumnVector!T getColumn(in size_t index) const
     {
         T[] ret;
         foreach (row; payload)
@@ -267,13 +320,14 @@ mixin ("return (Unqual!(typeof (this))(payload)) "~op~"= rhs;");
     }
     /// ditto
     static if (!rowMajor)
-    auto getRow(in size_t index) const
+    RowVector!T getRow(in size_t index) const
     {
         T[] ret;
         foreach (column; payload)
             ret ~= column[index];
         return ret.row;
     }
+    /// Pick up diagonal elements.
     Diagonal!T diagonal()
     {
         return rows.min(columns).iota.map!(i =>
@@ -524,6 +578,11 @@ struct Diagonal(T)
 {
     /// Initialize Diagonal with payload.
     this (inout T[] payload) inout
+    in
+    {
+        assert (payload.length);
+    }
+    body
     {
         this.payload = payload;
     }
@@ -535,12 +594,26 @@ struct Diagonal(T)
     alias columns = size;
     /// operation as vector
     auto opBinary(string op)(in Diagonal!T rhs) const
+    in
+    {
+        assert (this.size == rhs.size,
+            "Matrix dimension mismatch: [diag %d] %s [diag %d]".format(
+                this.size, op, rhs.size));
+    }
+    body
     {
         return (Unqual!(typeof (this))(payload.dup)).opOpAssign!op(rhs);
     }
     /// ditto
     auto opOpAssign(string op)(in Diagonal!T rhs)
         if (op == "*" || op == "/" || op == "+" || op == "-")
+    in
+    {
+        assert (this.size == rhs.size,
+            "Matrix dimension mismatch: [diag %d] %s [diag %d]".format(
+                this.size, op, rhs.size));
+    }
+    body
     {
         mixin ("payload[] "~op~"= rhs.payload[];");
         return this;
@@ -577,8 +650,14 @@ struct Diagonal(T)
     /// multiplication with vector.
     auto opBinaryRight(string op)(in RowVector!T lhs) const
         if (op == "*")
+    in
     {
-        assert (this.payload.length == lhs.payload.length);
+        assert (lhs.length == size,
+            "Matrix dimension mismatch: [row %d] %s [diag %d]".format(
+                lhs.length, op, size));
+    }
+    body
+    {
         auto ret = lhs.copy;
         ret.payload[] *= payload[];
         return ret;
@@ -586,6 +665,13 @@ struct Diagonal(T)
     /// ditto
     auto opBinary(string op)(in ColumnVector!T rhs) const
         if (op == "*")
+    in
+    {
+        assert (size == rhs.length,
+            "Matrix dimension mismatch: [diag %d] %s [col %d]".format(
+                size, op, rhs.length));
+    }
+    body
     {
         assert (this.payload.length == rhs.payload.length);
         auto ret = rhs.copy;
@@ -596,8 +682,14 @@ struct Diagonal(T)
     /// multiplication with matrix
     auto opBinary(string op)(in Matrix!(T, rowMajor) matrix) const
         if (op == "*")
+    in
     {
-        assert (this.payload.length == matrix.rows);
+        assert (size == matrix.rows,
+            "Matrix dimension mismatch: [diag %d] %s [%d*%d]".format(
+                size, op, matrix.rows, matrix.columns));
+    }
+    body
+    {
         auto payload = new T[][](matrix.majorLength, matrix.minorLength);
         foreach (i, row; matrix.payload)
             payload[i][] = row[] * this.payload[i];
@@ -606,8 +698,14 @@ struct Diagonal(T)
     /// ditto
     auto opBinary(string op)(in Matrix!(T, columnMajor) matrix) const
         if (op == "*")
+    in
     {
-        assert (this.payload.length == matrix.rows);
+        assert (size == matrix.rows,
+            "Matrix dimension mismatch: [diag %d] %s [%d*%d]".format(
+                size, op, matrix.rows, matrix.columns));
+    }
+    body
+    {
         auto payload = new T[][](matrix.majorLength, matrix.minorLength);
         foreach (i, column; matrix.payload)
             payload[i][] = this.payload[] * column[];
@@ -616,8 +714,14 @@ struct Diagonal(T)
     /// ditto
     auto opBinaryRight(string op)(in Matrix!(T, columnMajor) matrix) const
         if (op == "*" || op == "/")
+    in
     {
-        assert (this.payload.length == matrix.columns);
+        assert (matrix.columns == size,
+            "Matrix dimension mismatch: [%d*%d] %s [diag %d]".format(
+                matrix.rows, matrix.columns, op, size));
+    }
+    body
+    {
         auto payload = new T[][](matrix.majorLength, matrix.minorLength);
         foreach (i, column; matrix.payload)
     mixin ("payload[i][] = column[] "~op~" this.payload[i];");
@@ -626,8 +730,14 @@ struct Diagonal(T)
     /// ditto
     auto opBinaryRight(string op)(in Matrix!(T, rowMajor) matrix) const
         if (op == "*" || op == "/")
+    in
     {
-        assert (this.payload.length == matrix.columns);
+        assert (matrix.columns == size,
+            "Matrix dimension mismatch: [%d*%d] %s [diag %d]".format(
+                matrix.rows, matrix.columns, op, size));
+    }
+    body
+    {
         auto payload = new T[][](matrix.majorLength, matrix.minorLength);
         foreach (i, row; matrix.payload)
     mixin ("payload[i][] = row[] "~op~" this.payload[];");
