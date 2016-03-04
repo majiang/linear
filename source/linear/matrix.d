@@ -503,6 +503,23 @@ unittest
     assert (a[1..$, 0] == [3, 6].column);
 }
 
+Matrix!(T, toLayout) to(RowMajor toLayout, T, RowMajor fromLayout)(Matrix!(T, fromLayout) matrix)
+{
+    static if (fromLayout == toLayout)
+        return matrix;
+    else
+        return matrix.deepTranspose.transpose;
+}
+unittest
+{
+    auto a = [[0, 1, 2], [3, 4, 5]].matrix;
+    assert (a.to!rowMajor == a);
+    assert (a.to!columnMajor == [[0, 3], [1, 4], [2, 5]].matrix!columnMajor);
+    auto b = [[0, 1, 2], [3, 4, 5]].matrix!columnMajor;
+    assert (b.to!columnMajor == b);
+    assert (b.to!rowMajor == [[0, 3], [1, 4], [2, 5]].matrix);
+}
+
 bool approxEqual(MatrixType)(MatrixType A, MatrixType B)
     if (is (MatrixType == Matrix!(T, layout), T, RowMajor layout))
 in
@@ -520,16 +537,25 @@ body
     return true;
 }
 
-auto timesAdjoint(MatrixType)(MatrixType A)
+MatrixType timesAdjoint(MatrixType)(MatrixType A)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
 {
     return A * A.deepTranspose;
 }
 
-auto adjointTimes(MatrixType)(MatrixType A)
+MatrixType adjointTimes(MatrixType)(MatrixType A)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
 {
     return A.deepTranspose * A;
+}
+
+MatrixType smallSquare(MatrixType)(MatrixType A)
+    if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
+{
+    if (A.rows < A.columns)
+        return A.timesAdjoint;
+    else
+        return A.adjointTimes;
 }
 
 /// transpose a payload for matrix.
