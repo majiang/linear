@@ -80,6 +80,18 @@ struct RowVector(T)
     {
         return this.payload.product(rhs);
     }
+    /// Matrix multiplication (Only opOpAssign for RowVector).
+    auto opOpAssign(string op)(in Matrix!(T, rowMajor) rhs)
+        if (op == "*")
+    {
+        this.payload[] = (this * rhs).payload[];
+    }
+    /// ditto
+    auto opOpAssign(string op)(in Matrix!(T, columnMajor) rhs)
+        if (op == "*")
+    {
+        this.payload[] = (this * rhs).payload[];
+    }
     /// Length.
     auto length() const
     {
