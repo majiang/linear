@@ -527,14 +527,12 @@ struct Diagonal(T)
     {
         this.payload = payload;
     }
-    size_t rows() const
+    size_t size() const
     {
         return payload.length;
     }
-    size_t columns() const
-    {
-        return payload.length;
-    }
+    alias rows = size;
+    alias columns = size;
     /// operation as vector
     auto opBinary(string op)(in Diagonal!T rhs) const
     {
