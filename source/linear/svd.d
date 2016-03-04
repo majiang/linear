@@ -20,8 +20,10 @@ SVD!(T, rowMajor) svd(T, RowMajor rowMajor)(Matrix!(T, rowMajor) A)
 
 unittest
 {
-    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].matrix.svd;
-    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].matrix!columnMajor.svd;
+    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].matrix.svd.original;
+    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].transpose.matrix.svd.original;
+    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].matrix!columnMajor.svd.original;
+    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].transpose.matrix!columnMajor.svd.original;
 }
 
 /// Cholesky-Banachiewicz decomposition of a symmetric matrix.
@@ -189,18 +191,18 @@ struct SVD(T, RowMajor rowMajor)
     this (Matrix!(T, rowMajor) A)
     {
         S = A.singularValues;
-        auto evs = S.payload.map!(a => a * a).array;
+        auto evalues = S.payload.map!(a => a * a).array;
+        auto evectors = A.smallSquare.eigenvectors(evalues).gramSchmidt;
         if (A.rows <= A.columns)
         {
-            U = A.timesAdjoint.eigenvectors(evs).gramSchmidt.transpose.matrix!rowMajor;
+            U = evectors.transpose.matrix.to!rowMajor;
             tV = (A.deepTranspose * U / S).deepTranspose;
         }
         else
         {
-            tV = A.adjointTimes.eigenvectors(evs).gramSchmidt.matrix!rowMajor;
+            tV = evectors.matrix.to!rowMajor;
             U = (A * tV.deepTranspose) / S;
         }
-        assert (original.approxEqual(A));
     }
     Matrix!(T, rowMajor) original()
     {
