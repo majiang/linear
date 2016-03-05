@@ -1,9 +1,8 @@
 module linear.svd;
 
 import linear;
-import std.math : sqrt, abs, isNaN, eq = approxEqual;
+import std.math : sqrt, abs, isNaN, hypot, sgn, eq = approxEqual;
 import std.numeric : dotProduct;
-debug (sval) import std.stdio;
 version (unittest) import std.stdio;
 
 /** Singular value decomposition.
@@ -90,6 +89,19 @@ auto singularValuesQR(MatrixType)(MatrixType A, real eps = 1e-20)
     return ret;
 }
 
+/// ditto
+auto singularValuesJacobi(MatrixType)(MatrixType A, real eps = 1e-20)
+    if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
+{
+    auto ret = A.smallSquare.jacobi!MatrixType(eps);
+    foreach (ref elem; ret.payload)
+        elem = elem.sqrt;
+    ret.payload.sort!((a, b) => a > b);
+    return ret;
+}
+
+
+// L<sup><var>p</var></sup>-distance of two diagonal matrices.
 private real distanceL(real p, T)(Diagonal!T lhs, Diagonal!T rhs)
 {
     auto ret = real(0);
@@ -97,6 +109,88 @@ private real distanceL(real p, T)(Diagonal!T lhs, Diagonal!T rhs)
     foreach (x; lhs.payload.zip(rhs.payload))
         ret += (x[0] - x[1]).abs ^^ p;
     return ret ^^ (1 / p);
+}
+
+/// Jacobi eigenvalue algorithm for symmetric matrix.
+auto jacobi(MatrixType)(MatrixType A, MatrixType.Element eps = 1e-20)
+{
+    size_t p, q;
+    while (eps < A.largest!MatrixType(p, q))
+        Rotation!(MatrixType.Element)(A.rows, p, q, A[p, p], A[p, q], A[q, q]).apply(A);
+    return A.diagonal;
+}
+
+private M.Element largest(M)(M A, out size_t p, out size_t q)
+{
+    M.Element elem = 0;
+    foreach (i; 0..A.rows)
+        foreach (j; 0..A.columns)
+            if (i != j && elem < A[i, j].abs)
+            {
+                p = i;
+                q = j;
+                elem = A[i, j].abs;
+            }
+    return elem;
+}
+
+private struct Rotation(T)
+{
+    immutable size_t size, p, q;
+    immutable T app, apq, aqq, c, s;
+    invariant
+    {
+        assert (!c.isNaN);
+        assert (!s.isNaN);
+    }
+    this (in size_t size, in size_t p, in size_t q, in T app, in T apq, in T aqq)
+    in
+    {
+        assert (p != q);
+        assert (p < size);
+        assert (q < size);
+        assert (!app.isNaN);
+        assert (!apq.isNaN);
+        assert (!aqq.isNaN);
+        assert (apq != 0);
+    }
+    body
+    {
+        this.size = size;
+        this.p = p;
+        this.q = q;
+        this.app = app;
+        this.apq = apq;
+        this.aqq = aqq;
+        immutable
+            alpha = (app - aqq) / 2,
+            beta = -apq,
+            gamma = alpha.abs / alpha.hypot(beta);
+        assert (!alpha.isNaN);
+        assert (! beta.isNaN);
+        assert (!gamma.isNaN);
+        this.c = ((1 + gamma) / 2).sqrt;
+        this.s = ((1 - gamma) / 2).sqrt * (alpha * beta).sgn;
+    }
+    void apply(MatrixType)(MatrixType A)
+    {
+        foreach (i; 0..size)
+        {
+            immutable tmp = c * A[p, i] - s * A[q, i];
+            A[q, i] = s * A[p, i] + c * A[q, i];
+            A[p, i] = tmp;
+        }
+        foreach (i; 0..size)
+        {
+            A[i, p] = A[p, i];
+            A[i, q] = A[q, i];
+        }
+        immutable crossTerm = 2 * c * s * apq;
+        A[p, p] = c * c * app + s * s * aqq - crossTerm;
+        A[q, q] = s * s * app + c * c * aqq + crossTerm;
+        A[p, q] = 0;
+        A[q, p] = 0;
+    }
 }
 
 auto eigenvectors(MatrixType, U)(MatrixType A, U[] eigenvalues)
@@ -224,7 +318,7 @@ struct SVD(T, RowMajor rowMajor)
     Diagonal!T S;
     this (Matrix!(T, rowMajor) A)
     {
-        S = A.singularValuesQR;
+        S = A.singularValuesJacobi;
         auto evalues = S.payload.map!(a => a * a).array;
         auto evectors = A.smallSquare.eigenvectors(evalues).gramSchmidt;
         if (A.rows <= A.columns)
