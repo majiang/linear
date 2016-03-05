@@ -20,10 +20,16 @@ SVD!(T, rowMajor) svd(T, RowMajor rowMajor)(Matrix!(T, rowMajor) A)
 
 unittest
 {
-    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].matrix.svd.original;
-    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].transpose.matrix.svd.original;
-    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].matrix!columnMajor.svd.original;
-    [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]].transpose.matrix!columnMajor.svd.original;
+    auto arr = [[1.0L, 3, 1], [3.0L, -2, -8], [-2.0L, 4, 8], [1.0L, 0, 1]];
+    arr.matrix.svd.original;
+    arr.transpose.matrix.svd.original;
+    arr.matrix!columnMajor.svd.original;
+    arr.transpose.matrix!columnMajor.svd.original;
+    arr = [[2.0L, 0, 0], [0.0L, 2, 0], [0.0L, 0, 1], [0.0L, 0, 0]];
+    arr.matrix.svd.original;
+    arr.transpose.matrix.svd.original;
+    arr.matrix!columnMajor.svd.original;
+    arr.transpose.matrix!columnMajor.svd.original;
 }
 
 /// Cholesky-Banachiewicz decomposition of a symmetric matrix.
@@ -193,14 +199,40 @@ private struct Rotation(T)
     }
 }
 
-auto eigenvectors(MatrixType, U)(MatrixType A, U[] eigenvalues)
+/** Eigenvectors of a matrix.
+
+Params:
+    A = the matrix.
+    eigenvalues = the eigenvalues of a matrix, multiplicity must be spcified by duplicating the values.
+*/
+MatrixType.Element[][] eigenvectors(MatrixType, U)(MatrixType A, U[] eigenvalues)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor) && is (typeof (MatrixType.init[0, 0] -= U.init)))
+out (result)
 {
-    return eigenvalues.map!(ev => A.eigenvectors(ev)).join.array;
+    debug (evec)
+        tracef("eigenvectors found:\n%(  %(%e %)\n%)\n.", result);
+}
+body
+{
+    MatrixType.Element[][] ret;
+    size_t skip;
+    foreach (ev; eigenvalues)
+    {
+        if (skip)
+        {
+            trace("skip");
+            skip -= 1;
+            continue;
+        }
+        auto tmp = A.eigenvectors(ev);
+        skip = tmp.length - 1;
+        ret ~= tmp;
+    }
+    return ret;
 }
 
-/// Eigenvectors of a matrix.
-auto eigenvectors(MatrixType, U)(MatrixType A, U eigenvalue)
+/// Eigenvectors of a matrix for a given eigenvalue.
+MatrixType.Element[][] eigenvectors(MatrixType, U)(MatrixType A, U eigenvalue)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor) && is (typeof (MatrixType.init[0, 0] -= U.init)))
 in
 {
@@ -211,6 +243,8 @@ out (result)
     assert (result.length,
         "No eigenvector found for eigenvalue %e of matrix:\n%(  %(%e %)\n%)\n.".format(
             eigenvalue, A));
+    debug (evec)
+        tracef("eigenvectors found for eigenvalue %e:\n%(  %(%e %)\n%)\n.", eigenvalue, result);
     foreach (v; result)
         assert ((A * v.column).approxEqual(eigenvalue * v.column));
 }
@@ -259,19 +293,38 @@ body
 
 /// Gram-Schmidt orthonormalization of vectors.
 T[][] gramSchmidt(T)(T[][] a)
+in
+{
+    debug (gson)
+        tracef("gson input:\n%(  %(%e %)\n%)\n.", a);
+}
+out (result)
+{
+    foreach (i, u; result)
+        foreach (j, v; result[0..i+1])
+            assert (u.dotProduct(v).eq((i == j)),
+                "gson: %d-th and %d-th vector of output has product %f\n  %(%e %)\nand\n  %(%e %)\n.".format(
+                    i, j, u.dotProduct(v), u, v));
+}
+body
 {
     immutable n = a.length;
     foreach (i; 0..n)
     {
         foreach (j; 0..i)
         {
-            debug (gson) tracef("gson: subtract %d-th vector [%(%e %)] from %d-th vector [%(%e %)]", j, a[j], i, a[j]);
+            debug (gson) tracef("gson: subtract %d-th vector [%(%e %)] from %d-th vector [%(%e %)]", j, a[j], i, a[i]);
             immutable r = a[i].dotProduct(a[j]) / a[j].dotProduct(a[j]);
             a[i][] -= a[j][] * r;
+        debug (gson)
+            tracef("gson now:\n%(  %(%e %)\n%)\n.", a);
         }
-        immutable rinv = a[i].dotProduct(a[i]);
+        auto rinv = a[i].dotProduct(a[i]);
         criticalf(rinv == 0, "gson: %d-th vector is now zero", i);
+        rinv = rinv.sqrt;
         a[i][] /= rinv;
+        debug (gson)
+            tracef("gson now:\n%(  %(%e %)\n%)\n.", a);
     }
     return a;
 }
@@ -317,17 +370,30 @@ struct SVD(T, RowMajor rowMajor)
     Matrix!(T, rowMajor) U, tV;
     Diagonal!T S;
     this (Matrix!(T, rowMajor) A)
+    out
+    {
+        assert (original.approxEqual(A), "SVD equality does not hold:\n%(  %(%e %)\n%)\nand\n%(  %(%e %)\n%)\n.%s".format(original, A, this));
+    }
+    body
     {
         S = A.singularValuesJacobi;
         auto evalues = S.payload.map!(a => a * a).array;
+        debug (svd)
+            tracef("evalues: %(%e %)", evalues);
         auto evectors = A.smallSquare.eigenvectors(evalues).gramSchmidt;
-        if (A.rows <= A.columns)
+        debug (svd)
+            tracef("evectors:\n%(  %(%e %)\n%)\n.", evectors);
+        if (A.rows < A.columns)
         {
+            debug (svd)
+                trace("rows <= columns");
             U = evectors.transpose.matrix.to!rowMajor;
             tV = (A.deepTranspose * U / S).deepTranspose;
         }
         else
         {
+            debug (svd)
+                trace("columns <= rows");
             tV = evectors.matrix.to!rowMajor;
             U = (A * tV.deepTranspose) / S;
         }
@@ -335,6 +401,15 @@ struct SVD(T, RowMajor rowMajor)
     Matrix!(T, rowMajor) original()
     {
         return U * S * tV;
+    }
+    string toString()
+    {
+        return "SVD
+(
+U = %(%(%e %)\n    %)\n
+S = %s\n
+tV= %(%(%e %)\n    %)\n
+)".format(U, S, tV);
     }
 }
 
