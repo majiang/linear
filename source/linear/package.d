@@ -5,3 +5,4 @@ public import linear.saveload;
 public import linear.svd;
 
 package import std.range, std.algorithm, std.array;
+package import std.string : format;

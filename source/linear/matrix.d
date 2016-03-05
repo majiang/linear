@@ -3,7 +3,6 @@ module linear.matrix;
 import linear;
 import std.typecons;
 import std.traits : Unqual;
-import std.string : format;
 alias RowMajor = Flag!"RowMajor";
 enum rowMajor = RowMajor.yes, columnMajor = RowMajor.no;
 
@@ -809,7 +808,7 @@ unittest
     static assert (!is (typeof ([1].column * [1].diagonal)));
 }
 unittest
-{   import std.string : format;
+{
     auto a = [1, 3, 5].row;
     auto b = [2, 4, 6].row;
     auto c = [1, 2, 4].diagonal;
