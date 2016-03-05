@@ -45,14 +45,31 @@ body
     foreach (i; 0..n)
     {
         foreach (j; 0..i)
+        {
+            if (L[j, j] == 0)
+            {
+                debug (cbd)
+                    tracef("cbd: division by L[%d, %d] = 0", j, j);
+                immutable tmp = A[i, j] - L[i, 0..j] * L[j, 0..j].transpose;
+                if (tmp != 0)
+                    warning("cbd: treat L[%d, %d] = %e / 0 as 0", i, j, tmp);
+                continue;
+            }
             L[i, j] = (A[i, j] - L[i, 0..j] * L[j, 0..j].transpose) / L[j, j];
-        L[i, i] = (A[i, i] - L[i, 0..i] * L[i, 0..i].transpose).sqrt;
+        }
+        immutable tmp = A[i, i] - L[i, 0..i] * L[i, 0..i].transpose;
+        if (tmp < 0)
+        {
+            warning("cbd: treat L[%d, %d] = sqrt(%e) as 0", i, i, tmp);
+            continue;
+        }
+        L[i, i] = tmp.sqrt;
     }
     return L;
 }
 
 /// Singular values of a matrix.
-auto singularValues(MatrixType)(MatrixType A, real eps = 1e-20)
+auto singularValuesQR(MatrixType)(MatrixType A, real eps = 1e-20)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
 {
     A = A.smallSquare;
@@ -63,7 +80,8 @@ auto singularValues(MatrixType)(MatrixType A, real eps = 1e-20)
         auto old = A.diagonal;
         A = L.adjointTimes;
         diff = A.diagonal.distanceL!1(old);
-        debug (sval) stderr.writefln("error = %e", diff);
+        debug (svqr)
+            tracef("error = %e", diff);
     }
     auto ret = A.diagonal;
     foreach (ref elem; ret.payload)
@@ -96,6 +114,9 @@ in
 }
 out (result)
 {
+    assert (result.length,
+        "No eigenvector found for eigenvalue %e of matrix:\n%(  %(%e %)\n%)\n.".format(
+            eigenvalue, A));
     foreach (v; result)
         assert ((A * v.column).approxEqual(eigenvalue * v.column));
 }
@@ -150,11 +171,13 @@ T[][] gramSchmidt(T)(T[][] a)
     {
         foreach (j; 0..i)
         {
+            debug (gson) tracef("gson: subtract %d-th vector [%(%e %)] from %d-th vector [%(%e %)]", j, a[j], i, a[j]);
             immutable r = a[i].dotProduct(a[j]) / a[j].dotProduct(a[j]);
             a[i][] -= a[j][] * r;
         }
-        immutable r = 1 / a[i].dotProduct(a[i]).sqrt;
-        a[i][] *= r;
+        immutable rinv = a[i].dotProduct(a[i]);
+        criticalf(rinv == 0, "gson: %d-th vector is now zero", i);
+        a[i][] /= rinv;
     }
     return a;
 }
@@ -201,7 +224,7 @@ struct SVD(T, RowMajor rowMajor)
     Diagonal!T S;
     this (Matrix!(T, rowMajor) A)
     {
-        S = A.singularValues;
+        S = A.singularValuesQR;
         auto evalues = S.payload.map!(a => a * a).array;
         auto evectors = A.smallSquare.eigenvectors(evalues).gramSchmidt;
         if (A.rows <= A.columns)
