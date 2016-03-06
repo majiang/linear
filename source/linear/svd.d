@@ -9,10 +9,16 @@ version (unittest) import std.stdio;
 
 Params:
     A = the matrix to decompose.
+    rank = the maximum rank of the decomposition (the number of singular vectors).
 Returns:
 A struct with three members: U and tV of the same type as A and S of Diagonal!T.
-U S tV = A holds.
+U S tV = A holds if rank is not less than the true rank of A.
 */
+SVD!(T, rowMajor) svd(T, RowMajor rowMajor)(Matrix!(T, rowMajor) A, size_t rank)
+{
+    return SVD!(T, rowMajor)(A, rank);
+}
+/// ditto
 SVD!(T, rowMajor) svd(T, RowMajor rowMajor)(Matrix!(T, rowMajor) A)
 {
     return SVD!(T, rowMajor)(A);
@@ -25,6 +31,12 @@ unittest
     arr.transpose.matrix.svd.original;
     arr.matrix!columnMajor.svd.original;
     arr.transpose.matrix!columnMajor.svd.original;
+    foreach (rank; [1, 2])
+    {
+        auto a = arr.matrix.svd(rank).original;
+        debug (svd)
+            tracef("rank-%d SVD result:\n%(  %(%.3f %)\n%)\n. compare with\n%(  %(%.3f %)\n%)\n.", rank, a.payload, arr);
+    }
     arr = [[2.0L, 0, 0], [0.0L, 2, 0], [0.0L, 0, 1], [0.0L, 0, 0]];
     arr.matrix.svd.original;
     arr.transpose.matrix.svd.original;
@@ -74,7 +86,7 @@ body
 }
 
 /// Singular values of a matrix.
-auto singularValuesQR(MatrixType)(MatrixType A, real eps = 1e-20)
+auto singularValuesQR(MatrixType)(MatrixType A, size_t rank, real eps = 1e-20)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
 {
     A = A.smallSquare;
@@ -92,17 +104,19 @@ auto singularValuesQR(MatrixType)(MatrixType A, real eps = 1e-20)
     foreach (ref elem; ret.payload)
         elem = elem.sqrt;
     ret.payload.sort!((a, b) => a > b);
+    ret.payload = ret.payload[0..rank.min($)];
     return ret;
 }
 
 /// ditto
-auto singularValuesJacobi(MatrixType)(MatrixType A, real eps = 1e-20)
+auto singularValuesJacobi(MatrixType)(MatrixType A, size_t rank, real eps = 1e-20)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
 {
     auto ret = A.smallSquare.jacobi!MatrixType(eps);
     foreach (ref elem; ret.payload)
         elem = elem.sqrt;
     ret.payload.sort!((a, b) => a > b);
+    ret.payload = ret.payload[0..rank.min($)];
     return ret;
 }
 
@@ -220,7 +234,8 @@ body
     {
         if (skip)
         {
-            trace("skip");
+            debug (evec)
+                trace("skip");
             skip -= 1;
             continue;
         }
@@ -369,18 +384,19 @@ struct SVD(T, RowMajor rowMajor)
 {
     Matrix!(T, rowMajor) U, tV;
     Diagonal!T S;
-    this (Matrix!(T, rowMajor) A)
+    this (Matrix!(T, rowMajor) A, size_t rank)
     out
     {
-        assert (original.approxEqual(A), "SVD equality does not hold:\n%(  %(%e %)\n%)\nand\n%(  %(%e %)\n%)\n.%s".format(original, A, this));
+        assert (U.columns == rank);
+        assert (tV.rows == rank);
     }
     body
     {
-        S = A.singularValuesJacobi;
+        S = A.singularValuesJacobi(rank);
         auto evalues = S.payload.map!(a => a * a).array;
         debug (svd)
             tracef("evalues: %(%e %)", evalues);
-        auto evectors = A.smallSquare.eigenvectors(evalues).gramSchmidt;
+        auto evectors = A.smallSquare.eigenvectors(evalues)[0..rank.min($)].gramSchmidt;
         debug (svd)
             tracef("evectors:\n%(  %(%e %)\n%)\n.", evectors);
         if (A.rows < A.columns)
@@ -397,6 +413,15 @@ struct SVD(T, RowMajor rowMajor)
             tV = evectors.matrix.to!rowMajor;
             U = (A * tV.deepTranspose) / S;
         }
+    }
+    this (Matrix!(T, rowMajor) A)
+    out
+    {
+        assert (original.approxEqual(A), "SVD equality does not hold:\n%(  %(%e %)\n%)\nand\n%(  %(%e %)\n%)\n.%s".format(original, A, this));
+    }
+    body
+    {
+        this (A, A.rows.min(A.columns));
     }
     Matrix!(T, rowMajor) original()
     {
