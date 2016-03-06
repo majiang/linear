@@ -100,19 +100,20 @@ auto singularValuesQR(MatrixType)(MatrixType A, size_t rank, real eps = 1e-20)
         debug (svqr)
             tracef("error = %e", diff);
     }
-    auto ret = A.diagonal;
-    foreach (ref elem; ret.payload)
-        elem = elem.sqrt;
-    ret.payload.sort!((a, b) => a > b);
-    ret.payload = ret.payload[0..rank.min($)];
-    return ret;
+    return A.largestSquareRootDiagonal(rank);
 }
 
 /// ditto
 auto singularValuesJacobi(MatrixType)(MatrixType A, size_t rank, real eps = 1e-20)
     if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
 {
-    auto ret = A.smallSquare.jacobi!MatrixType(eps);
+    return A.smallSquare.jacobi!MatrixType(eps).largestSquareRootDiagonal(rank);
+}
+
+private auto largestSquareRootDiagonal(MatrixType)(MatrixType A, size_t rank)
+    if (is (MatrixType == Matrix!(T, rowMajor), T, RowMajor rowMajor))
+{
+    auto ret = A.diagonal;
     foreach (ref elem; ret.payload)
         elem = elem.sqrt;
     ret.payload.sort!((a, b) => a > b);
@@ -137,7 +138,7 @@ auto jacobi(MatrixType)(MatrixType A, MatrixType.Element eps = 1e-20)
     size_t p, q;
     while (eps < A.largest!MatrixType(p, q))
         Rotation!(MatrixType.Element)(A.rows, p, q, A[p, p], A[p, q], A[q, q]).apply(A);
-    return A.diagonal;
+    return A;
 }
 
 private M.Element largest(M)(M A, out size_t p, out size_t q)
