@@ -1,6 +1,6 @@
 module linear.saveload;
 import linear;
-import std.conv, std.string, std.traits;
+import std.conv, std.string;
 
 string toSerialString(Vector)(in Vector v)
     if (is (Vector == RowVector!T, T) ||
@@ -30,7 +30,7 @@ unittest
 {
     auto a = [0, 1, 2].row;
     const b = [3, 4, 5].column;
-    immutable c = [real(0), real.infinity, real.epsilon].row;
+    immutable c = [real(0), real.epsilon].row;
     assert (a.toSerialString.toRowVector!int == a);
     assert (b.toSerialString.toColumnVector!int == b);
     assert (c.toSerialString.toRowVector!real == c);
@@ -55,7 +55,7 @@ unittest
 {
     auto a = [[0, 1, 2], [3, 4, 5]].matrix;
     assert (a.toSerialString.toMatrix!int == a);
-    immutable c = [[real(0), 1], [real.infinity, real.epsilon]].matrix!columnMajor;
+    immutable c = [[real(0), 1], [real(0), real.epsilon]].matrix!columnMajor;
     assert (c.toSerialString.toMatrix!(real, columnMajor) == c);
 }
 

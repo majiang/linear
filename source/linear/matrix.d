@@ -2,7 +2,6 @@ module linear.matrix;
 
 import linear;
 import std.typecons;
-import std.traits : Unqual;
 alias RowMajor = Flag!"RowMajor";
 enum rowMajor = RowMajor.yes, columnMajor = RowMajor.no;
 
@@ -16,8 +15,10 @@ struct Matrix(T, RowMajor rowMajor=rowMajor)
     this (inout T[][] payload) inout
     in
     {
-        assert (payload.length);
-        assert (payload[0].length);
+        assert (payload.length, "empty matrix disallowed.");
+        assert (payload[0].length, "empty matrix disallowed.");
+        static if (isFloatingPoint!T)
+            assert (payload.allFinite, "matrix elements must be finite.");
     }
     body
     {
@@ -605,7 +606,9 @@ struct Diagonal(T)
     this (inout T[] payload) inout
     in
     {
-        assert (payload.length);
+        assert (payload.length, "empty matrix disallowed.");
+        static if (isFloatingPoint!T)
+            assert (payload.allFinite, "matrix elements must be finite.");
     }
     body
     {

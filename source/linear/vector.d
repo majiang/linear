@@ -1,6 +1,5 @@
 module linear.vector;
 import linear;
-import std.traits : Unqual;
 import std.typecons : Tuple, tuple;
 
 /// Row vector.
@@ -16,6 +15,13 @@ struct RowVector(T)
     }
     /// Initialize RowVector with payload.
     this (inout T[] payload) inout
+    in
+    {
+        assert (payload.length, "empty vector disallowed.");
+        static if (isFloatingPoint!T)
+            assert (payload.allFinite, "");
+    }
+    body
     {
         this.payload = payload;
     }
@@ -140,10 +146,9 @@ unittest
     static assert (is (typeof (x.row) == RowVector!int));
     static assert (is (typeof (y.row) == const RowVector!int));
     static assert (is (typeof (z.row) == const RowVector!int));
-    auto xs = x.row[], ys = y.row[], zs = z.row[];
-    static assert (is (typeof (xs) == int[]));
-    static assert (is (typeof (ys) == const(int[])));
-    static assert (is (typeof (zs) == const(int[])));
+    static assert (is (typeof (x.row[]) == int[]));
+    static assert (is (typeof (y.row[]) == const(int[])));
+    static assert (is (typeof (z.row[]) == const(int[])));
 }
 
 /// Column vector.
@@ -159,6 +164,13 @@ struct ColumnVector(T)
     }
     /// Initialize ColumnVector with payload.
     this (inout T[] payload) inout
+    in
+    {
+        assert (payload.length, "empty vector disallowed.");
+        static if (isFloatingPoint!T)
+            assert (payload.allFinite, "");
+    }
+    body
     {
         this.payload = payload;
     }
@@ -264,10 +276,9 @@ unittest
     static assert (is (typeof (x.column) == ColumnVector!int));
     static assert (is (typeof (y.column) == const ColumnVector!int));
     static assert (is (typeof (z.column) == const ColumnVector!int));
-    auto xs = x.column[], ys = y.column[], zs = z.column[];
-    static assert (is (typeof (xs) == int[]));
-    static assert (is (typeof (ys) == const(int[])));
-    static assert (is (typeof (zs) == const(int[])));
+    static assert (is (typeof (x.column[]) == int[]));
+    static assert (is (typeof (y.column[]) == const(int[])));
+    static assert (is (typeof (z.column[]) == const(int[])));
 }
 
 /// fill by 1s.
